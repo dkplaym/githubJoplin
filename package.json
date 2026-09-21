@@ -67,7 +67,7 @@
     "updatePluginTypes": "./packages/generator-joplin/updateTypes.sh",
     "validateFilenames": "node ./packages/tools/validateFilenames.js",
     "watch": "yarn workspaces foreach --worktree --parallel --verbose --interlaced --jobs 999 run watch",
-    "watchWebsite": "nodemon --delay 1 --watch Assets/WebsiteAssets --watch packages/tools/website --watch packages/tools/website/utils --watch packages/doc-builder/build --ext md,ts,js,mustache,c[...]
+    "watchWebsite": "nodemon --delay 1 --watch Assets/WebsiteAssets --watch packages/tools/website --watch packages/tools/website/utils --watch packages/doc-builder/build --ext md,ts,js,mustache,c[... ]"
   },
   "devDependencies": {
     "@crowdin/cli": "4",
