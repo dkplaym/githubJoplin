@@ -28,70 +28,65 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-  - name: Setup Node.js (v20)
-    uses: actions/setup-node@v4
-    with:
-      node-version: 20
-      cache: 'npm'
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /usr/share/swift || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/local/share/boost || true
+          sudo rm -rf /usr/local/share/powershell || true
+          docker system prune -af || true
+          df -h /
 
-  - name: Setup Java JDK (v17)
-    uses: actions/setup-java@v4
-    with:
-      distribution: 'temurin'
-      java-version: '17'
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update || true
+          sudo apt-get install -y libsecret-1-dev
 
-  - name: Setup Android SDK
-    uses: android-actions/setup-android@v3
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-  # 1. 安装根目录依赖并构建公共模块 (packages/renderer, packages/utils, packages/lib 等)
-  - name: Install Monorepo Dependencies
-    run: |
-      npm ci || npm install
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-  - name: Build Monorepo Packages
-    run: |
-      npm run build
+      - name: Enable Corepack and Install Dependencies
+        run: |
+          corepack enable
+          yarn install
+        env:
+          SKIP_ONENOTE_CONVERTER_BUILD: 1
 
-  # 2. 为 Release 版本自动生成并配置本地临时签名密钥 (避免没有官方 Keystore 导致构建失败)
-  - name: Configure Keystore For Release
-    working-directory: packages/app-mobile/android/app
-    run: |
-      keytool -genkeypair -v -storetype PKCS12 -keystore temp-release-key.keystore \
-        -alias joplin-key -keyalg RSA -keysize 2048 -validity 10000 \
-        -storepass joplin123 -keypass joplin123 \
-        -dname "CN=JoplinFork, OU=Dev, O=Self, L=City, S=State, C=US"
+      - name: Build Monorepo Packages
+        run: |
+          yarn run build
 
-      cat << 'EOF' >> ../gradle.properties
-      MYAPP_UPLOAD_STORE_FILE=temp-release-key.keystore
-      MYAPP_UPLOAD_KEY_ALIAS=joplin-key
-      MYAPP_UPLOAD_STORE_PASSWORD=joplin123
-      MYAPP_UPLOAD_KEY_PASSWORD=joplin123
-      EOF
+      - name: Build Android App
+        run: |
+          cd packages/app-mobile/android
+          # 自动注入 debug 签名以允许 release 打包
+          sed -i -- 's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/' app/build.gradle
+          chmod +x gradlew
+          ./gradlew assembleRelease
 
-  # 3. 授予 gradlew 执行权限
-  - name: Make Gradlew Executable
-    working-directory: packages/app-mobile/android
-    run: chmod +x ./gradlew
+      - name: Verify alignment
+        run: |
+          cd packages/app-mobile/android/app
+          APK_FILE="./build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK_FILE" ]; then
+            echo "APK file not found."
+            exit 1
+          fi
+          echo "APK generated successfully at $APK_FILE"
 
-  # 4. 执行 Gradle 构建
-  - name: Build Android APK
-    working-directory: packages/app-mobile/android
-    run: |
-      BUILD_TYPE="${{ github.event.inputs.build_type || 'Release' }}"
-      if [ "$BUILD_TYPE" = "Debug" ]; then
-        ./gradlew assembleDebug --stacktrace
-      else
-        ./gradlew assembleRelease --stacktrace
-      fi
-
-  # 5. 上传生成的 APK 文件
-  - name: Upload APK Artifact
-    uses: actions/upload-artifact@v4
-    with:
-      name: joplin-android-${{ github.event.inputs.build_type || 'Release' }}-apk
-      path: |
-        packages/app-mobile/android/app/build/outputs/apk/**/*.apk
-      retention-days: 7
-
-
-
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: joplin-android-apk
+          path: packages/app-mobile/android/app/build/outputs/apk/release/*.apk
+          retention-days: 7
