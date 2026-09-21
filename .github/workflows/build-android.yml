@@ -1,30 +1,32 @@
-me: Build Joplin Android APK
+name: react-native-android-build-apk
+
 on:
-workflow_dispatch:
-inputs:
-build_type:
-description: 'Build Type (Release or Debug)'
-required: true
-default: 'Release'
-type: choice
-options:
-- Release
-- Debug
-push:
-branches:
-- main
-paths-ignore:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+          - Release
+          - Debug
+  push:
+    branches:
+      - main
+    paths-ignore:
       - 'README.md'
       - 'packages/app-desktop/**'
       - 'packages/app-cli/**'
       - 'packages/server/**'
+
 jobs:
-build-apk:
-runs-on: ubuntu-latest
-timeout-minutes: 90
-steps:
-  - name: Checkout Source Code
-    uses: actions/checkout@v4
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
 
   - name: Setup Node.js (v20)
     uses: actions/setup-node@v4
