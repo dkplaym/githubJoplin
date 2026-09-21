@@ -14,9 +14,10 @@ push:
 branches:
 - main
 paths-ignore:
-- 'README.md'
-- 'packages/app-desktop/' - 'packages/app-cli/'
-- 'packages/server/'
+      - 'README.md'
+      - 'packages/app-desktop/**'
+      - 'packages/app-cli/**'
+      - 'packages/server/**'
 jobs:
 build-apk:
 runs-on: ubuntu-latest
